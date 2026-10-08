@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPPORT
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  SELF_EXCLUDED
+}
+
+enum TradeDirection {
+  UP
+  DOWN
+}
+
+enum TradeContractType {
+  DIRECTION
+  OVER_UNDER
+  LAST_DIGIT
+}
+
+enum TradeMode {
+  DEMO
+  REAL
+}
+
+enum TradeResult {
+  WIN
+  LOSS
+  TIE
+}
+
+enum TradeStatus {
+  OPEN
+  SETTLED
+}
+
+enum LedgerType {
+  DEMO_INITIAL_BALANCE
+  TRADE_STAKE
+  TRADE_WIN
+  TRADE_LOSS
+  TRADE_REFUND
+  PAYMENT
+  ADMIN_ADJUSTMENT
+}
+
+enum TransactionType {
+  DEMO_INITIAL_BALANCE
+  TRADE
+  DEMO_RESET
+  PAYMENT
+  ADMIN_ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentStatus {
+  DEPOSIT_PENDING
+  DEPOSIT_SUCCESS
+  DEPOSIT_FAILED
+  WITHDRAWAL_PENDING
+  WITHDRAWAL_SUCCESS
+  WITHDRAWAL_FAILED
+}
+
+enum KycStatus {
+  NOT_REQUIRED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model User {
+  id                String        @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String        @unique
+  phone             String?       @unique
+  passwordHash      String
+  country           String
+  dateOfBirth       DateTime
+  termsAcceptedAt   DateTime
+  role              Role          @default(USER)
+  emailVerifiedAt   DateTime?
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean       @default(false)
+  suspendedAt       DateTime?
+  kycStatus         KycStatus     @default(NOT_REQUIRED)
+  selfExcludedUntil DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  account           Account?
+  sessions          Session[]
+  passwordTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  trades            Trade[]
+  transactions      Transaction[]
+  payments          Payment[]
+  auditLogs         AuditLog[]    @relation("AuditActor")
+  supportTickets    SupportTicket[]
+  kycSubmissions    KycSubmission[]
+
+  @@index([createdAt])
+  @@index([role])
+}
+
+model Account {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  balance         Decimal        @default(0) @db.Decimal(18, 2)
+  realBalance     Decimal        @default(0) @db.Decimal(18, 2)
+  status          AccountStatus  @default(ACTIVE)
+  lastResetAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  trades          Trade[]
+  ledgerEntries   LedgerEntry[]
+  transactions    Transaction[]
+
+  @@index([status])
+}
+
+model Trade {
+  id               String         @id @default(cuid())
+  userId           String
+  accountId        String
+  asset            String
+  contractType     TradeContractType @default(DIRECTION)
+  direction        TradeDirection
+  mode             TradeMode     @default(DEMO)
+  stake            Decimal        @db.Decimal(18, 2)
+  entryPrice       Decimal        @db.Decimal(24, 10)
+  targetPrice      Decimal?       @db.Decimal(24, 10)
+  selectedDigit    Int?
+  exitPrice        Decimal?       @db.Decimal(24, 10)
+  payoutRate       Decimal        @db.Decimal(5, 4)
+  potentialPayout  Decimal        @db.Decimal(18, 2)
+  result           TradeResult?
+  status           TradeStatus    @default(OPEN)
+  openedAt         DateTime       @default(now())
+  expiresAt        DateTime
+  closedAt         DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  account          Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([accountId, status])
+  @@index([status, expiresAt])
+}
+
+model LedgerEntry {
+  id            String      @id @default(cuid())
+  accountId     String
+  type          LedgerType
+  amount        Decimal     @db.Decimal(18, 2)
+  balanceBefore Decimal     @db.Decimal(18, 2)
+  balanceAfter  Decimal     @db.Decimal(18, 2)
+  referenceType String
+  referenceId   String
+  createdAt     DateTime    @default(now())
+  account       Account     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([referenceType, referenceId, type])
+  @@index([accountId, createdAt])
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  userId    String
+  accountId String
+  type      TransactionType
+  amount    Decimal           @db.Decimal(18, 2)
+  status    TransactionStatus @default(COMPLETED)
+  reference String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  account   Account           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([accountId, createdAt])
+  @@index([status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  provider          String
+  providerReference String?       @unique
+  idempotencyKey    String        @unique
+  amount            Decimal       @db.Decimal(18, 2)
+  currency          String        @default("USD")
+  status            PaymentStatus
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  user              User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model KycSubmission {
+  id                String    @id @default(cuid())
+  userId            String
+  provider          String
+  providerReference String?   @unique
+  status            KycStatus @default(PENDING)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model SupportTicket {
+  id        String        @id @default(cuid())
+  userId    String
+  subject   String
+  message   String
+  status    SupportStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

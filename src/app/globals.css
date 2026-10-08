@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #080d18;
+  --foreground: #f8fafc;
+  --surface: #101827;
+  --surface-raised: #131e2f;
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #22d3ee;
 }
 
 @theme inline {
@@ -12,15 +16,79 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface-raised);
+  padding: 0.65rem 0.75rem;
+  color: #f8fafc;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(34 211 238 / 12%);
+}
+
+.field::placeholder {
+  color: #94a3b8;
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+::selection {
+  background: rgb(34 211 238 / 30%);
+}
+
+/* Landing-page theme tokens (scoped to the marketing site) */
+:root,
+.lp-dark {
+  --lp-bg: #080d18;
+  --lp-deep: #060a12;
+  --lp-surface: #101c2a;
+  --lp-soft: #0b1220;
+  --lp-fg: #f8fafc;
+  --lp-muted: #8aa0b4;
+  --lp-line: rgba(255, 255, 255, 0.12);
+  --lp-accent: #22d3ee;
+  --lp-accent-strong: #38bdf8;
+  --lp-accent2: #10b981;
+}
+
+.lp-light {
+  --lp-bg: #f4f7fb;
+  --lp-deep: #e8eef5;
+  --lp-surface: #ffffff;
+  --lp-soft: #edf2f9;
+  --lp-fg: #0a1a26;
+  --lp-muted: #5a6b7a;
+  --lp-line: rgba(10, 26, 38, 0.12);
+  --lp-accent: #0891b2;
+  --lp-accent-strong: #0284c7;
+  --lp-accent2: #059669;
+}
+
+/* Sliding price ticker */
+@keyframes ticker-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-ticker {
+  animation: ticker-marquee 42s linear infinite;
+}
+
+.ticker-paused:hover {
+  animation-play-state: paused;
 }
