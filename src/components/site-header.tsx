@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
 
-type SiteSection = "dashboard" | "trade" | "trades" | "finance";
+type SiteSection = "dashboard" | "trade" | "trades" | "finance" | "admin";
 
 const appLinks: { href: string; label: string; section: SiteSection }[] = [
   { href: "/dashboard", label: "Overview", section: "dashboard" },

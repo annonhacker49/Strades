@@ -15,6 +15,7 @@ interface User {
   id: string;
   firstName: string;
   email: string;
+  role?: string;
   emailVerified: boolean;
   emailVerificationRequired: boolean;
 }
@@ -166,6 +167,14 @@ export default function DashboardPage() {
             >
               Finance
             </button>
+            {user?.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+              >
+                Admin console
+              </Link>
+            )}
           </div>
         </div>
 
