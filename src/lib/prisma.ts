@@ -6,7 +6,7 @@ function datasourceOptions(): ConstructorParameters<typeof PrismaClient>[0] {
   const url = process.env.DATABASE_URL;
   if (!url) return {};
   const separator = url.includes("?") ? "&" : "?";
-  const target = url.includes("connection_limit") ? url : `${url}${separator}connection_limit=3`;
+  const target = url.includes("connection_limit") ? url : `${url}${separator}connection_limit=2`;
   return { datasources: { db: { url: target } } };
 }
 
